@@ -1,0 +1,20 @@
+/* Task: Using SalesDB, Retreive a list of all orders, along with the
+related customers, product and employee details. For each order, display:
+Order ID, Customer's name, Product name, Sales, Price, Sales Person's name */
+
+SELECT 
+	o.OrderID,
+	o.Sales,
+	c.FirstName AS customerFirstName,
+	c.LastName AS customerLastName,
+	p.Product AS productName,
+	p.price,
+	e.FirstName AS EmployeeFirstName,
+	e.LastName AS EmployeeLastName
+FROM Sales.Orders AS o 
+LEFT JOIN SALES.Customers AS c 
+ON o.OrderID = c.CustomerID
+LEFT JOIN Sales.Products AS p
+ON o.ProductID = p.ProductID
+LEFT JOIN Sales.Employees AS e
+ON o.OrderID = e.EmployeeID
