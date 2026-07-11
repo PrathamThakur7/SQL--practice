@@ -1,0 +1,234 @@
+/*==============================================================
+                WINDOW RANKING FUNCTIONS
+        ROW_NUMBER(), RANK(), DENSE_RANK(),
+        CUME_DIST(), PERCENT_RANK(), NTILE()
+==============================================================*/
+
+
+/*==============================================================
+1. ROW_NUMBER()
+Rank all orders based on sales
+(Highest Sales → Lowest Sales)
+==============================================================*/
+
+SELECT
+    orderid,
+    productid,
+    sales,
+    ROW_NUMBER() OVER (ORDER BY sales DESC) AS SalesRank_Row
+FROM sales.orders;
+
+
+
+/*==============================================================
+2. RANK()
+Rank all orders based on sales
+(Highest Sales → Lowest Sales)
+==============================================================*/
+
+SELECT
+    orderid,
+    productid,
+    sales,
+    ROW_NUMBER() OVER (ORDER BY sales DESC) AS SalesRank_Row,
+    RANK() OVER (ORDER BY sales DESC) AS SalesRank_Rank
+FROM sales.orders;
+
+
+
+/*==============================================================
+3. DENSE_RANK()
+Rank all orders based on sales
+without gaps in ranking.
+==============================================================*/
+
+SELECT
+    orderid,
+    productid,
+    sales,
+    ROW_NUMBER() OVER (ORDER BY sales DESC) AS SalesRank_Row,
+    RANK() OVER (ORDER BY sales DESC) AS SalesRank_Rank,
+    DENSE_RANK() OVER (ORDER BY sales DESC) AS SalesRank_Dense
+FROM sales.orders;
+
+
+
+/*==============================================================
+4. Top-N Analysis
+Find the highest sales order
+for each product.
+==============================================================*/
+
+SELECT *
+FROM
+(
+    SELECT
+        orderid,
+        productid,
+        sales,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY productid
+            ORDER BY sales DESC
+        ) AS RankByProduct
+    FROM sales.orders
+) t
+WHERE RankByProduct = 1;
+
+
+
+/*==============================================================
+5. Bottom-N Analysis
+Find the two customers with
+the lowest total sales.
+==============================================================*/
+
+SELECT *
+FROM
+(
+    SELECT
+        customerid,
+        SUM(sales) AS TotalSales,
+        ROW_NUMBER() OVER
+        (
+            ORDER BY SUM(sales)
+        ) AS CustomerRank
+    FROM sales.orders
+    GROUP BY customerid
+) t
+WHERE CustomerRank <= 2;
+
+
+
+/*==============================================================
+6. Assign Unique IDs
+Generate unique IDs for
+Order Archive records.
+==============================================================*/
+
+SELECT
+    ROW_NUMBER() OVER
+    (
+        ORDER BY orderid, orderdate
+    ) AS UniqueID,
+    *
+FROM sales.ordersarchive;
+
+
+
+/*==============================================================
+7. Remove Duplicate Rows
+Return only the latest record
+for each OrderID.
+==============================================================*/
+
+SELECT *
+FROM
+(
+    SELECT
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY orderid
+            ORDER BY creationtime DESC
+        ) AS rn,
+        *
+    FROM sales.ordersarchive
+) t
+WHERE rn = 1;
+
+
+
+/*==============================================================
+8. CUME_DIST()
+Find products that fall within
+the highest 40% of prices.
+==============================================================*/
+
+SELECT
+    *,
+    CONCAT(DistRank * 100, '%') AS DistRankPercent
+FROM
+(
+    SELECT
+        product,
+        price,
+        CUME_DIST() OVER (ORDER BY price DESC) AS DistRank
+    FROM sales.products
+) t
+WHERE DistRank <= 0.40;
+
+
+
+/*==============================================================
+9. PERCENT_RANK()
+Find products that fall within
+the highest 40% of prices.
+==============================================================*/
+
+SELECT
+    *,
+    CONCAT(DistRank * 100, '%') AS DistRankPercent
+FROM
+(
+    SELECT
+        product,
+        price,
+        PERCENT_RANK() OVER (ORDER BY price DESC) AS DistRank
+    FROM sales.products
+) t
+WHERE DistRank <= 0.40;
+
+
+
+/*==============================================================
+10. NTILE()
+Divide all orders into
+multiple buckets.
+==============================================================*/
+
+SELECT
+    orderid,
+    sales,
+    NTILE(1) OVER (ORDER BY sales DESC) AS OneBucket,
+    NTILE(2) OVER (ORDER BY sales DESC) AS TwoBuckets,
+    NTILE(3) OVER (ORDER BY sales DESC) AS ThreeBuckets,
+    NTILE(4) OVER (ORDER BY sales DESC) AS FourBuckets
+FROM sales.orders;
+
+
+
+/*==============================================================
+11. Sales Segmentation
+Divide all orders into
+High / Medium / Low
+sales categories.
+==============================================================*/
+
+SELECT
+    *,
+    CASE
+        WHEN Buckets = 1 THEN 'High'
+        WHEN Buckets = 2 THEN 'Medium'
+        WHEN Buckets = 3 THEN 'Low'
+    END AS SalesSegmentation
+FROM
+(
+    SELECT
+        orderid,
+        sales,
+        NTILE(3) OVER (ORDER BY sales DESC) AS Buckets
+    FROM sales.orders
+) t;
+
+
+
+/*==============================================================
+12. Export Data
+Split all orders into
+two separate groups.
+==============================================================*/
+
+SELECT
+    NTILE(2) OVER (ORDER BY orderid) AS Bucket,
+    *
+FROM sales.orders;
